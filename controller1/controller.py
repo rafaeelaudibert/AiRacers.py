@@ -1,11 +1,10 @@
 import controller_template as controller_template
+import numpy as np
 
 
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
         super().__init__(track, evaluate=evaluate, bot_type=bot_type)
-
-
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -23,9 +22,9 @@ class Controller(controller_template.Controller):
         """
 
         features = self.compute_features(self.sensors)
-        raise NotImplementedError("This Method Must Be Implemented")
 
-
+        # raise NotImplementedError("This Method Must Be Implemented")
+        return np.random.randint(1, 5)
 
     def compute_features(self, sensors):
         """
@@ -43,10 +42,18 @@ class Controller(controller_template.Controller):
           (see the specification file/manual for more details)
         :return: A list containing the features you defined
         """
-        raise NotImplementedError("This Method Must Be Implemented")
+        track_distance_left, \
+            track_distance_center, \
+            track_distance_right, \
+            on_track, \
+            checkpoint_distance, \
+            car_velocity, \
+            enemy_distance, \
+            position_angle, \
+            enemy_detected = sensors
 
-
-
+        # raise NotImplementedError("This Method Must Be Implemented")
+        return sensors
 
     def learn(self, weights) -> list:
         """
@@ -56,4 +63,18 @@ class Controller(controller_template.Controller):
         :param weights: initial weights of the controller (either loaded from a file or generated randomly)
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
-        raise NotImplementedError("This Method Must Be Implemented")
+
+        best_value = self.run_episode(weights)
+        best_weights = np.array(weights).reshape(5, -1)
+
+        # Learning process
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
+            pass
+
+        # raise NotImplementedError("This Method Must Be Implemented")
+
+        # Return the weights learned at this point
+        return best_weights
