@@ -6,8 +6,19 @@ class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
         super().__init__(track, evaluate=evaluate, bot_type=bot_type)
 
+        # Quantity of neighbours to generate and to get
+        self.neighbourhood_size = 50
+        self.best_neighbourhood_size = 15
+
+        # Iterate until mean moves less than this threshold
+        self.epsilon = 1e-5
+
         # This initialization value make it think we are moving forward in the 1st step
         self.old_next_checkpoint = float("-inf")
+
+        # Placeholder parameters for CMA-ES
+        self.mean = None
+        self.cov_matrix = None
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -94,17 +105,75 @@ class Controller(controller_template.Controller):
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
 
-        best_value = self.run_episode(weights)
+        # Make weights a np array
+        weights = np.array(weights)
+
+        # Initialize CMA-ES values
+        self.mean = weights
+        self.cov_matrix = np.identity(weights.shape[0])
+
+        best_fitness = float("-inf")
+        best_fitness_at_iter = 0
         best_weights = np.array(weights).reshape(5, -1)
 
         # Learning process
         try:
-            while True:
-                pass
+            loss = float("inf")
+            iter = 1
+            trials = 1  # Try to make backsearch
+            while loss > self.epsilon:
+                # Sample from a multivariate normal distribution
+                params = np.random.multivariate_normal(
+                    self.mean, self.cov_matrix, self.neighbourhood_size)
+
+                # Evaluate with the generated parameters
+                fitness = np.array([self.run_episode(param)
+                                    for param in params])
+
+                # Sort the parameters according to the evaluations,
+                # taking the `self.best_neighbourhood_size` better ones
+                best_params = params[fitness.argsort(
+                )][::-1][:self.best_neighbourhood_size]
+
+                # Compute the new mean
+                new_mean = np.sum(best_params, axis=0) / \
+                    self.best_neighbourhood_size
+
+                # Compute new covariance matrix
+                diff = best_params - self.mean
+                matmul = np.matmul(diff[..., np.newaxis], np.transpose(
+                    diff[..., np.newaxis], [0, 2, 1]))
+                new_cov_matrix = np.sum(
+                    matmul, axis=0) / self.best_neighbourhood_size
+
+                # Compute loss
+                loss = np.linalg.norm(self.mean - new_mean)
+                print('Iter', iter, 'Loss:', loss, 'Max:', max(fitness))
+
+                # Update mean and cov_matrix
+                self.mean = new_mean
+                self.cov_matrix = new_cov_matrix
+
+                # Update best weight
+                max_fitness = max(fitness)
+                if max_fitness > best_fitness:
+                    print('Updated best fitness to {}'.format(max_fitness))
+                    best_fitness = max_fitness
+                    best_fitness_at_iter = iter
+                    best_weights = best_params[0]
+
+                # Update iteration
+                iter += 1
+
+                # If can still backsearch, do it, to avoid local minimums
+                if (iter - 5 > best_fitness_at_iter or loss < self.epsilon) and trials < 3:
+                    trials += 1
+                    self.mean = best_weights
+                    self.cov_matrix = np.identity(best_weights.shape[0])
+                    best_fitness_at_iter = iter - 1
+
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
-
-        # raise NotImplementedError("This Method Must Be Implemented")
 
         # Return the weights learned at this point
         return best_weights
