@@ -25,9 +25,12 @@ class Controller(controller_template.Controller):
         """
 
         features = self.compute_features(self.sensors)
+        parameters = np.array(parameters).reshape(5, -1)
 
-        # raise NotImplementedError("This Method Must Be Implemented")
-        return np.random.randint(1, 5)
+        computed_values = features * parameters
+        summed_values = np.sum(computed_values, axis=1)
+
+        return np.argmax(summed_values)
 
     def compute_features(self, sensors):
         """
