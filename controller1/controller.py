@@ -78,3 +78,7 @@ class Controller(controller_template.Controller):
 
         # Return the weights learned at this point
         return best_weights
+
+    @staticmethod
+    def normalize(val, min, max):
+        return 2 * ((val - min) / (max - min)) - 1
