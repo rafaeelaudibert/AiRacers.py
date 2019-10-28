@@ -3,21 +3,29 @@ import numpy as np
 import datetime
 import time
 import os
+import random
 
-MAX_BACKTRACKS = 10
-BACKTRACK_LIMIT = 10
+MAX_BACKTRACKS = 4
+BACKTRACK_LIMIT = 8
 
 
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
         super().__init__(track, evaluate=evaluate, bot_type=bot_type)
 
-        # Quantity of neighbours to generate and to get
+        # Quantity of neighbours to generate and to get,
+        # and to start generating weights
         self.neighbourhood_size = 60
-        self.best_neighbourhood_size = 25
+        self.best_neighbourhood_size = int(self.neighbourhood_size / 3)
+        self.start_weight_quantity = 1000
+
+        # Features hyperparamets
+        self.vel_threshold = 120
+        self.last_action = 5  # Nothing
+        self.no_turn_times = 0
 
         # Iterate until mean moves less than this threshold
-        self.epsilon = 1e-5
+        self.epsilon = 1e-4
 
         # This initialization value make it think we are moving forward in the 1st step
         self.old_next_checkpoint = float("-inf")
@@ -46,7 +54,11 @@ class Controller(controller_template.Controller):
 
         action_values = np.sum(features * parameters, axis=1)
 
-        return np.argmax(action_values) + 1
+        self.last_action = np.argmax(action_values) + 1
+        self.no_turn_times = self.no_turn_times + \
+            1 if self.last_action not in [1, 2] else 0
+
+        return self.last_action
 
     def compute_features(self, sensors):
         """
@@ -83,18 +95,21 @@ class Controller(controller_template.Controller):
         left_f = self.normalize(track_distance_left, 0, 100)
         center_f = self.normalize(track_distance_center, 0, 100)
         right_f = self.normalize(track_distance_right, 0, 100)
+        central_f = self.normalize(
+            abs(track_distance_left - track_distance_right), 0, 100)
         ontrack_f = self.normalize(on_track, 0, 1)
         velocity_f = self.normalize(car_velocity, 0, 200)
+        slow_f = self.normalize(int(car_velocity < self.vel_threshold), 0, 1)
+        turn_f = self.normalize(max(self.no_turn_times, 10), 0, 10)
+        last_action_f = -1 if self.last_action == 1 else 1 if self.last_action == 2 else 0
 
         # TODO FEATURES
-        # Know how to leave grass
-        # Remember last action (left, center, right)
-        # Time without choosing to turn
-        # Faster than threshold
-        # Try to centralize better (left - right)
+        # Know how to leave grass <- Too hard, how?
+        # Memorize last
 
         features = np.array([constant_f, approx_f, left_f, center_f,
-                             right_f, ontrack_f, velocity_f])
+                             right_f, central_f, ontrack_f, velocity_f,
+                             slow_f, turn_f, last_action_f])
 
         # Update values
         self.old_next_checkpoint = checkpoint_distance
@@ -179,9 +194,12 @@ class Controller(controller_template.Controller):
                     print("Saving it to {}".format(output))
                     np.savetxt(output, best_weights)
 
+                    # Reset backtracks
+                    backtracks = 1
+
                 # Log info
                 print('Iter', iteration, '\tLoss:', loss, '\tMax:', max(
-                    fitness), '\nBest at iter:', best_fitness_at_iter, end='\n\n')
+                    fitness), 'Best at iter:', best_fitness_at_iter, 'with value', best_fitness, end='\n\n')
 
                 # Update iteration
                 iteration += 1
