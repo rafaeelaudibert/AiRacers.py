@@ -1,5 +1,11 @@
 import controller_template as controller_template
 import numpy as np
+import datetime
+import time
+import os
+
+MAX_BACKTRACKS = 10
+BACKTRACK_LIMIT = 10
 
 
 class Controller(controller_template.Controller):
@@ -7,8 +13,8 @@ class Controller(controller_template.Controller):
         super().__init__(track, evaluate=evaluate, bot_type=bot_type)
 
         # Quantity of neighbours to generate and to get
-        self.neighbourhood_size = 50
-        self.best_neighbourhood_size = 15
+        self.neighbourhood_size = 60
+        self.best_neighbourhood_size = 25
 
         # Iterate until mean moves less than this threshold
         self.epsilon = 1e-5
@@ -118,9 +124,14 @@ class Controller(controller_template.Controller):
         # Learning process
         try:
             loss = float("inf")
-            iter = 1
-            trials = 1  # Try to make backsearch
+            iteration = 1
+            backtracks = 1  # Try to make backsearch
             while loss > self.epsilon:
+
+                # Only try MAX_BACKTRACKS times
+                if backtracks >= MAX_BACKTRACKS:
+                    break
+
                 # Sample from a multivariate normal distribution
                 params = np.random.multivariate_normal(
                     self.mean, self.cov_matrix, self.neighbourhood_size)
@@ -147,7 +158,6 @@ class Controller(controller_template.Controller):
 
                 # Compute loss
                 loss = np.linalg.norm(self.mean - new_mean)
-                print('Iter', iter, 'Loss:', loss, 'Max:', max(fitness))
 
                 # Update mean and cov_matrix
                 self.mean = new_mean
@@ -158,18 +168,32 @@ class Controller(controller_template.Controller):
                 if max_fitness > best_fitness:
                     print('Updated best fitness to {}'.format(max_fitness))
                     best_fitness = max_fitness
-                    best_fitness_at_iter = iter
+                    best_fitness_at_iter = iteration
                     best_weights = best_params[0]
 
-                # Update iteration
-                iter += 1
+                    # Save
+                    if not os.path.exists("./params"):
+                        os.makedirs("./params")
+                    output = "./params/{}.{}.{}.txt".format(self.track_name.name, datetime.datetime.fromtimestamp(
+                        time.time()).strftime('%Y%m%d%H%M%S'), int(best_fitness))
+                    print("Saving it to {}".format(output))
+                    np.savetxt(output, best_weights)
 
-                # If can still backsearch, do it, to avoid local minimums
-                if (iter - 5 > best_fitness_at_iter or loss < self.epsilon) and trials < 3:
-                    trials += 1
+                # Log info
+                print('Iter', iteration, '\tLoss:', loss, '\tMax:', max(
+                    fitness), '\nBest at iter:', best_fitness_at_iter, end='\n\n')
+
+                # Update iteration
+                iteration += 1
+
+                # Try to backtrack to avoid local minimums
+                if iteration - BACKTRACK_LIMIT > best_fitness_at_iter or loss < self.epsilon:
+                    print("Backtracking to {} iteration".format(
+                        best_fitness_at_iter))
+                    backtracks += 1
                     self.mean = best_weights
                     self.cov_matrix = np.identity(best_weights.shape[0])
-                    best_fitness_at_iter = iter - 1
+                    best_fitness_at_iter = iteration - 1
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
