@@ -60,6 +60,7 @@ class Controller(controller_template.Controller):
             enemy_detected = sensors
 
         # Compute features
+        constant_f = 1
         approx_f = self.normalize(checkpoint_distance -
                                   self.old_next_checkpoint, -200, 200)
         left_f = self.normalize(track_distance_left, 0, 100)
@@ -74,8 +75,8 @@ class Controller(controller_template.Controller):
         # Time without choosing to turn
         # Faster than threshold
 
-        features = np.array([approx_f, left_f, center_f,
-                             right_f, ontrack_f, velocity_f, 0, 0])
+        features = np.array([constant_f, approx_f, left_f, center_f,
+                             right_f, ontrack_f, velocity_f])
 
         # Update values
         self.old_next_checkpoint = checkpoint_distance
