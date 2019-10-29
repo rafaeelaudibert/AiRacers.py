@@ -118,16 +118,22 @@ class Controller(controller_template.Controller):
                 if new_value > highest_values[k_inst-1]:
                     print()
                     print("New best value found:", new_value, ">", highest_values[k_inst-1])
-                    highest_values.pop(k_inst-1)
-                    highest_values.insert(k_inst-1, new_value)
+                    equal_value = 0
+                    for b in range(len(highest_values)):
+                        if new_value == highest_values[b]:
+                            equal_value = 1
+                            print("New value is equal!")
+                    if equal_value == 0:
+                        highest_values.pop(k_inst-1)
+                        highest_values.insert(k_inst-1, new_value)
 
-                    last_value = highest_values[k_inst-1]
-                    highest_values.sort(reverse=True)
-                    for k in range(k_inst):
-                        if highest_values[k] == last_value:
-                            highest_weights.insert(k, neighbours[i].copy())
-                            highest_weights.pop(k_inst)
-                            break
+                        last_value = highest_values[k_inst-1]
+                        highest_values.sort(reverse=True)
+                        for k in range(k_inst):
+                            if highest_values[k] == last_value:
+                                highest_weights.insert(k, neighbours[i].copy())
+                                highest_weights.pop(k_inst)
+                                break
 
 
                     print("Highest Values:", highest_values)
