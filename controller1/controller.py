@@ -98,12 +98,13 @@ class Controller(controller_template.Controller):
             neighbours.append(weights.copy())
             for i in range(len(weights)):
                 new_neighbour = weights.copy()
-                new_neighbour[i] += random.random() * epsilon
+                for n in range(len(weights)):
+                    if random.randint(0, 5) == 1:
+                        new_neighbour[n] += epsilon
+                    elif random.randint(0, 5) == 1:
+                        new_neighbour[n] -= epsilon
                 neighbours.append(new_neighbour.copy())
-            for i in range(len(weights)):
-                new_neighbour = weights.copy()
-                new_neighbour[i] -= random.random() * epsilon
-                neighbours.append(new_neighbour.copy())
+            print(len(neighbours), "novos vizinhos gerados.")
             return neighbours
 
         def compute_best_neighbour(neighbours):
@@ -112,7 +113,9 @@ class Controller(controller_template.Controller):
             bestNeighbour = neighbours[0]
             for i in range(1,len(neighbours)):
                 new_value = self.run_episode(neighbours[i])
+                print("Vizinho", i, "calculado como", new_value)
                 if new_value > best_value:
+                    print("New best value found:", new_value, ">", best_value)
                     best_value = new_value
                     bestNeighbour = neighbours[i].copy()
             return best_value, bestNeighbour.copy()
@@ -121,7 +124,7 @@ class Controller(controller_template.Controller):
         #best_weights = np.array(weights).reshape(5, -1)
         iter = 0
         iter_unchanged = 0
-        epsilon = 20
+        epsilon = 0.1
         best_weights = weights
         best_value = self.run_episode(best_weights)
         print("Best Score: ", best_value)
@@ -130,13 +133,13 @@ class Controller(controller_template.Controller):
             while True:
                 print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
 
-                old_weights = weights.copy()
-                best_value, weights = compute_best_neighbour(generate_neighbours(weights, epsilon))
+                old_value = best_value
+                best_value, weights = compute_best_neighbour(generate_neighbours(best_weights, epsilon).copy())
 
                 print("Best Score: ", best_value)
                 print()
 
-                if np.sum(old_weights) == np.sum(weights):
+                if best_value == old_value:
                     iter_unchanged +=1
                 else:
                     iter_unchanged = 0
@@ -144,7 +147,7 @@ class Controller(controller_template.Controller):
                 if iter_unchanged > 3:
                     epsilon *= 0.5
                     if epsilon < 0.0001:
-                        epsilon = 100
+                        epsilon *= 100
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
