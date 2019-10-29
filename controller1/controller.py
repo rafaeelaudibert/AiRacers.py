@@ -17,7 +17,6 @@ class Controller(controller_template.Controller):
         # and to start generating weights
         self.neighbourhood_size = 60
         self.best_neighbourhood_size = int(self.neighbourhood_size / 3)
-        self.start_weight_quantity = 1000
 
         # Features hyperparamets
         self.vel_threshold = 120
@@ -105,7 +104,6 @@ class Controller(controller_template.Controller):
 
         # TODO FEATURES
         # Know how to leave grass <- Too hard, how?
-        # Memorize last
 
         features = np.array([constant_f, approx_f, left_f, center_f,
                              right_f, central_f, ontrack_f, velocity_f,
