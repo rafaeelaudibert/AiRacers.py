@@ -99,39 +99,43 @@ class Controller(controller_template.Controller):
             for j in range(len(best_weights)):
                 for i in range(len(best_weights[j])):
                     new_neighbour = best_weights[j].copy()
+                    new_neighbour[i] += random.choice((-1, 1))*epsilon
                     for n in range(len(best_weights[j])):
-                        if random.randint(0, 5) == 1:
+                        if random.randint(0, 9) == 1 and i != n:
                             new_neighbour[n] += epsilon
-                        elif random.randint(0, 5) == 1:
+                        elif random.randint(0, 9) == 1 and i != n:
                             new_neighbour[n] -= epsilon
                     neighbours.append(new_neighbour.copy())
 
             print(len(neighbours), "novos vizinhos gerados.")
-            return neighbours
+            return neighbours.copy()
 
         def compute_best_neighbours(neighbours, highest_values, highest_weights, k_inst):
             print()
             print("Computing ", len(neighbours), " neighbours.")
             for i in range(len(neighbours)):
                 new_value = self.run_episode(neighbours[i])
+                print(np.sum(neighbours[i]))
                 if new_value > highest_values[k_inst-1]:
                     print()
                     print("New best value found:", new_value, ">", highest_values[k_inst-1])
-
                     highest_values.pop(k_inst-1)
                     highest_values.insert(k_inst-1, new_value)
-
 
                     last_value = highest_values[k_inst-1]
                     highest_values.sort(reverse=True)
                     for k in range(k_inst):
                         if highest_values[k] == last_value:
-                            highest_weights.insert(k, highest_weights[k_inst-1])
+                            highest_weights.insert(k, neighbours[i].copy())
                             highest_weights.pop(k_inst)
+                            break
 
 
                     print("Highest Values:", highest_values)
-
+                    print("Highest Score:", self.run_episode(highest_weights[0]))
+                    print("Highest Score:", self.run_episode(highest_weights[1]))
+                    print("Highest Score:", self.run_episode(highest_weights[2]))
+                    print("Highest Score:", self.run_episode(highest_weights[3]))
                 print("Vizinho", i, "calculado como", new_value)
             return highest_values.copy(), highest_weights.copy()
 
@@ -143,7 +147,7 @@ class Controller(controller_template.Controller):
         iter = 0
         iter_unchanged = 0
         epsilon = 0.1
-
+        print(self.run_episode(weights))
         highest_values = []
         highest_weights = []
         highest_weights.append(weights.copy())
@@ -158,13 +162,16 @@ class Controller(controller_template.Controller):
                 print()
                 print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
                 print()
+                best_weights = highest_weights[0].copy()
+                print(self.run_episode(best_weights))
 
-                old_weights = highest_weights.copy
+                old_values = highest_values.copy
                 highest_values, highest_weights = compute_best_neighbours( generate_neighbours(highest_weights.copy(), epsilon).copy(),
                                                                               highest_values.copy(), highest_weights.copy(), k_inst)
                 print("Highest Values:", highest_values)
-
-                if np.sum(old_weights) == np.sum(highest_weights):
+                best_weights = highest_weights[0].copy()
+                print(self.run_episode(best_weights))
+                if np.sum(old_values) == np.sum(highest_values):
                     iter_unchanged +=1
                 else:
                     iter_unchanged = 0
@@ -178,7 +185,8 @@ class Controller(controller_template.Controller):
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
 
-        best_weights = np.array(weights).reshape(5, -1)
+        best_weights = highest_weights[0]
+        print(self.run_episode(best_weights))
         # raise NotImplementedError("This Method Must Be Implemented")
 
         # Return the weights learned at this point
