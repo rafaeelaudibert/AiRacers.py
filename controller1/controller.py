@@ -134,7 +134,7 @@ class Controller(controller_template.Controller):
                 print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
 
                 old_value = best_value
-                best_value, weights = compute_best_neighbour(generate_neighbours(best_weights, epsilon).copy())
+                best_value, best_weights = compute_best_neighbour(generate_neighbours(best_weights, epsilon).copy())
 
                 print("Best Score: ", best_value)
                 print()
