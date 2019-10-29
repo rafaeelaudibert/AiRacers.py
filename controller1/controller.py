@@ -93,17 +93,18 @@ class Controller(controller_template.Controller):
         :param weights: initial weights of the controller (either loaded from a file or generated randomly)
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
-        def generate_neighbours(weights, epsilon):
+        def generate_neighbours(best_weights, epsilon, many):
             neighbours = []
-            neighbours.append(weights.copy())
-            for i in range(len(weights)):
-                new_neighbour = weights.copy()
-                for n in range(len(weights)):
-                    new_neighbour[i] += random.choice((-1, 1)) * epsilon
-                    if random.randint(0, 10) == 1 and i != n:
-                        new_neighbour[n] += epsilon
-                    elif random.randint(0, 10) == 1 and i != n:
-                        new_neighbour[n] -= epsilon
+            neighbours.append(best_weights.copy())
+            for i in range(len(best_weights)): #Não faz mudancas no vizinho de maior pontuacao
+                new_neighbour = best_weights.copy()
+                new_neighbour[i] += random.choice((-1, 1)) * epsilon
+                if many == 1:
+                    for n in range(len(best_weights)):
+                        if random.randint(0, 10) == 1 and i != n:
+                            new_neighbour[n] += epsilon
+                        elif random.randint(0, 10) == 1 and i != n:
+                            new_neighbour[n] -= epsilon
                 neighbours.append(new_neighbour.copy())
             print(len(neighbours), "novos vizinhos gerados.")
             return neighbours.copy()
@@ -111,7 +112,9 @@ class Controller(controller_template.Controller):
         def compute_best_neighbour(neighbours):
             print("Computing ", len(neighbours), " neighbours.")
             best_value = self.run_episode(neighbours[0])
+            old_value = best_value
             bestNeighbour = neighbours[0].copy()
+            print("Best Score:", best_value)
             for i in range(1,len(neighbours)):
                 new_value = self.run_episode(neighbours[i])
                 print("Vizinho", i, "calculado como", new_value)
@@ -119,25 +122,27 @@ class Controller(controller_template.Controller):
                     print("New best value found:", new_value, ">", best_value)
                     best_value = new_value
                     bestNeighbour = neighbours[i].copy()
-            return best_value, bestNeighbour.copy()
+            return best_value, bestNeighbour.copy(), old_value
 
         #best_value = self.run_episode(weights)
         #best_weights = np.array(weights).reshape(5, -1)
         iter = 0
         iter_unchanged = 0
-        epsilon = 1
+        epsilon = 1*random.random()
+        many = 1
         best_weights = weights.copy()
-        best_value = self.run_episode(best_weights)
-        print("Best Score: ", best_value)
+        print(self.run_episode(weights))
+        print(self.run_episode(weights))
         # Learning process
         try:
+
             while True:
                 print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
 
-                old_value = best_value
-                best_value, best_weights = compute_best_neighbour(generate_neighbours(best_weights.copy(), epsilon).copy())
+                best_value, best_weights, old_value = compute_best_neighbour(generate_neighbours(best_weights.copy(), epsilon, 1).copy())
 
-                print("Best Score: ", best_value)
+                print("Best Score:  ", best_value)
+                print("Old Score:   ", old_value)
                 print()
 
                 if best_value == old_value:
@@ -146,9 +151,12 @@ class Controller(controller_template.Controller):
                     iter_unchanged = 0
                 iter += 1
                 if iter_unchanged > 0:
-                    epsilon *= 0.7
-                    if epsilon < 0.0001:
-                        epsilon = 10*random.random()
+                    epsilon = 1*random.random()
+                    if iter_unchanged > 3:
+                        many += 1
+                        if many > 1:
+                            many = 0
+                        epsilon = 1*random.random()
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
