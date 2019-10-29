@@ -11,6 +11,11 @@ class Controller(controller_template.Controller):
         # This initialization value make it think we are moving forward in the 1st step
         self.old_next_checkpoint = float("-inf")
 
+        # Features hyperparamets
+        self.vel_threshold = 120
+        self.last_action = 5  # Nothing
+        self.no_turn_times = 0
+
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
     #######################################################################
@@ -63,14 +68,19 @@ class Controller(controller_template.Controller):
             enemy_detected = sensors
 
         # Compute features
-        constant_f = 1
+        constant_f = 1.0
         approx_f = self.normalize(checkpoint_distance -
                                   self.old_next_checkpoint, -200, 200)
         left_f = self.normalize(track_distance_left, 0, 100)
         center_f = self.normalize(track_distance_center, 0, 100)
         right_f = self.normalize(track_distance_right, 0, 100)
+        central_f = self.normalize(
+            abs(track_distance_left - track_distance_right), 0, 100)
         ontrack_f = self.normalize(on_track, 0, 1)
         velocity_f = self.normalize(car_velocity, 0, 200)
+        slow_f = self.normalize(int(car_velocity < self.vel_threshold), 0, 1)
+        turn_f = self.normalize(max(self.no_turn_times, 10), 0, 10)
+        last_action_f = -1 if self.last_action == 1 else 1 if self.last_action == 2 else 0
 
         # TODO FEATURES
         # Know how to leave grass
@@ -79,7 +89,8 @@ class Controller(controller_template.Controller):
         # Faster than threshold
 
         features = np.array([constant_f, approx_f, left_f, center_f,
-                             right_f, ontrack_f, velocity_f])
+                             right_f, central_f, ontrack_f, velocity_f,
+                             slow_f, turn_f, last_action_f])
 
         # Update values
         self.old_next_checkpoint = checkpoint_distance
@@ -144,10 +155,10 @@ class Controller(controller_template.Controller):
         #best_value = self.run_episode(weights)
         #best_weights = np.array(weights).reshape(5, -1)
         # Learning process
-        k_inst = 4
+        k_inst = 10
         iter = 0
         iter_unchanged = 0
-        epsilon = 1
+        epsilon = 1*random.random()
         print(self.run_episode(weights))
         highest_values = []
         highest_weights = []
@@ -176,9 +187,16 @@ class Controller(controller_template.Controller):
                     iter_unchanged = 0
                 iter += 1
                 if iter_unchanged > 0:
-                    epsilon *= 0.7
-                    if epsilon < 0.0001:
-                        epsilon = 10 * random.random()
+                    epsilon *= 1*random.random()
+                    if iter_unchanged%3 == 0:
+                        print("3")
+                        epsilon = 0.1*random.random()
+                    if iter_unchanged%4 == 0:
+                        print("4")
+                        epsilon = 10*random.random()
+                    if iter_unchanged%5 == 0:
+                        print("5")
+                        epsilon = 100*random.random()
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
