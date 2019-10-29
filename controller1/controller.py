@@ -144,10 +144,10 @@ class Controller(controller_template.Controller):
                 else:
                     iter_unchanged = 0
                 iter += 1
-                if iter_unchanged > 3:
+                if iter_unchanged > 0:
                     epsilon *= 0.5
                     if epsilon < 0.0001:
-                        epsilon *= 100
+                        epsilon = 0.2
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
