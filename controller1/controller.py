@@ -115,7 +115,6 @@ class Controller(controller_template.Controller):
             print("Computing ", len(neighbours), " neighbours.")
             for i in range(len(neighbours)):
                 new_value = self.run_episode(neighbours[i])
-                print(np.sum(neighbours[i]))
                 if new_value > highest_values[k_inst-1]:
                     print()
                     print("New best value found:", new_value, ">", highest_values[k_inst-1])
@@ -132,10 +131,6 @@ class Controller(controller_template.Controller):
 
 
                     print("Highest Values:", highest_values)
-                    print("Highest Score:", self.run_episode(highest_weights[0]))
-                    print("Highest Score:", self.run_episode(highest_weights[1]))
-                    print("Highest Score:", self.run_episode(highest_weights[2]))
-                    print("Highest Score:", self.run_episode(highest_weights[3]))
                 print("Vizinho", i, "calculado como", new_value)
             return highest_values.copy(), highest_weights.copy()
 
@@ -146,7 +141,7 @@ class Controller(controller_template.Controller):
         k_inst = 4
         iter = 0
         iter_unchanged = 0
-        epsilon = 0.1
+        epsilon = 1
         print(self.run_episode(weights))
         highest_values = []
         highest_weights = []
@@ -162,8 +157,6 @@ class Controller(controller_template.Controller):
                 print()
                 print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
                 print()
-                best_weights = highest_weights[0].copy()
-                print(self.run_episode(best_weights))
 
                 old_values = highest_values.copy
                 highest_values, highest_weights = compute_best_neighbours( generate_neighbours(highest_weights.copy(), epsilon).copy(),
@@ -177,9 +170,9 @@ class Controller(controller_template.Controller):
                     iter_unchanged = 0
                 iter += 1
                 if iter_unchanged > 0:
-                    epsilon *= 0.5
+                    epsilon *= 0.7
                     if epsilon < 0.0001:
-                        epsilon = 0.2
+                        epsilon = 10 * random.random()
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
