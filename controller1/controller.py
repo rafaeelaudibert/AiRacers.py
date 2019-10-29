@@ -99,18 +99,19 @@ class Controller(controller_template.Controller):
             for i in range(len(weights)):
                 new_neighbour = weights.copy()
                 for n in range(len(weights)):
-                    if random.randint(0, 5) == 1:
+                    new_neighbour[i] += random.choice((-1, 1)) * epsilon
+                    if random.randint(0, 10) == 1 and i != n:
                         new_neighbour[n] += epsilon
-                    elif random.randint(0, 5) == 1:
+                    elif random.randint(0, 10) == 1 and i != n:
                         new_neighbour[n] -= epsilon
                 neighbours.append(new_neighbour.copy())
             print(len(neighbours), "novos vizinhos gerados.")
-            return neighbours
+            return neighbours.copy()
 
         def compute_best_neighbour(neighbours):
             print("Computing ", len(neighbours), " neighbours.")
             best_value = self.run_episode(neighbours[0])
-            bestNeighbour = neighbours[0]
+            bestNeighbour = neighbours[0].copy()
             for i in range(1,len(neighbours)):
                 new_value = self.run_episode(neighbours[i])
                 print("Vizinho", i, "calculado como", new_value)
@@ -124,8 +125,8 @@ class Controller(controller_template.Controller):
         #best_weights = np.array(weights).reshape(5, -1)
         iter = 0
         iter_unchanged = 0
-        epsilon = 0.1
-        best_weights = weights
+        epsilon = 1
+        best_weights = weights.copy()
         best_value = self.run_episode(best_weights)
         print("Best Score: ", best_value)
         # Learning process
@@ -145,9 +146,9 @@ class Controller(controller_template.Controller):
                     iter_unchanged = 0
                 iter += 1
                 if iter_unchanged > 0:
-                    epsilon *= 0.5
+                    epsilon *= 0.7
                     if epsilon < 0.0001:
-                        epsilon = 0.2
+                        epsilon = 10*random.random()
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
