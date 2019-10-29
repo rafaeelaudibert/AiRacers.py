@@ -1,8 +1,9 @@
 import controller_template as controller_template
 import numpy as np
-PARENTS = 10
-MUTATION_RATIO = 0.05
-MUTATION_EPSILON = 0.005
+PARENTS = 50
+MUTATION_RATIO = 0.5
+MUTATION_EPSILON = 1.0
+T = 250
 
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
@@ -101,7 +102,7 @@ class Controller(controller_template.Controller):
         
         # Compute feature_lens
         
-        ctrl_temp = Controller(chosen_track, bot_type=None, evaluate=False)
+        ctrl_temp = Controller(self.track_name, bot_type=None, evaluate=False)
         fake_sensors = [53, 66, 100, 1, 172.1353274581511, 150, -1, 0, 0]
         features_len = len(ctrl_temp.compute_features(fake_sensors))
 
@@ -110,19 +111,23 @@ class Controller(controller_template.Controller):
         # Generations
         gen = 0
 
-        fitness = np.array([self.run_episode(element) for element in elements])
-        couples = np.zeros(PARENTS, 2)
+        fitness = np.zeros((PARENTS))
+        fitness_exp = np.zeros((PARENTS))
+
+        couples = np.zeros((PARENTS, 2))
         
 
-        next_gen = np.zeros(*(PARENTS, features_len * 5)) # Auxiliar Array
-        best_weights = elements[np.argmax(fitness)]
+        next_gen = np.zeros((PARENTS, features_len * 5)) # Auxiliar Array
+        best_weights = np.zeros((features_len * 5))
         best_fitness = max(fitness)
 
         # Learning process
         try:
             for i in range(PARENTS):
                 fitness[i] = self.run_episode(elements[i])
+                fitness_exp[i] = np.exp(fitness[i]/T)
         
+            exp_sum = sum(fitness_exp)
             while True:
                 
                 # Resets the offspring count
@@ -130,14 +135,13 @@ class Controller(controller_template.Controller):
 
                 # Next Generation
                 gen += 1
-                
-                min_fit = min(fitness)
-                max_fit = max(fitness)
-                fitness = [normalize(fit, min_fit, max_fit) for fit in fitness]
+
+                fitness = [val/exp_sum for val in fitness_exp]
 
                 # Couples from current generation
                 couples = np.random.choice(list(range(PARENTS)), p=fitness, size=(PARENTS, 2))
-
+                print("Coupĺes:")
+                print(*couples)
                 # Breeding
                 for offspring, (p1, p2) in enumerate(couples):
                     for chromosome_it in range (features_len * 5): 
@@ -149,16 +153,25 @@ class Controller(controller_template.Controller):
                 # Mutation
                 for i in range(len(elements)):
                     for j in range(features_len * 5):
-                        elements[i, j] += np.random.choice([0, np.random.uniform(-1, 1) * MUTATION_EPSILON], [1 - MUTATION_RATIO, MUTATION_RATIO])
+                        elements[i, j] += np.random.choice([0, np.random.uniform(-1, 1) * MUTATION_EPSILON], p=[1 - MUTATION_RATIO, MUTATION_RATIO])
 
                 # Evaluate
-                fitness = np.array([self.run_episode(element) for element in elements])
+                for i in range(PARENTS):
+                    fitness[i] = self.run_episode(elements[i])
+                    fitness_exp[i] = np.exp(fitness[i]/T)
                 
+                exp_sum = sum(fitness_exp)
+
+                print ("Fitness Gen: ", gen)
                 print (*fitness)
 
-                if max(fitness) > best_fitness:
-                    best_fitness = max(fitness)
-                    best_weights = elements[np.argmax(fitness)]
+                max_fitness = max(fitness)
+
+                if max_fitness > best_fitness:
+                    best_fitness = max_fitness
+                    best_weights = elements[fitness.index(max_fitness)]
+                print("Best Fitness:")
+                print (best_fitness)
 
                 pass
 
@@ -170,4 +183,4 @@ class Controller(controller_template.Controller):
 
     @staticmethod
     def normalize(val, min, max):
-        return 2 * ((val - min) / (max - min)) - 1
+        return (val - min) / (max - min)
