@@ -130,7 +130,7 @@ class Controller(controller_template.Controller):
                             highest_weights.pop(k_inst)
 
 
-                    print("Highest Valuez:", highest_values)
+                    print("Highest Values:", highest_values)
 
                 print("Vizinho", i, "calculado como", new_value)
             return highest_values.copy(), highest_weights.copy()
@@ -162,16 +162,17 @@ class Controller(controller_template.Controller):
                 old_weights = highest_weights.copy
                 highest_values, highest_weights = compute_best_neighbours( generate_neighbours(highest_weights.copy(), epsilon).copy(),
                                                                               highest_values.copy(), highest_weights.copy(), k_inst)
+                print("Highest Values:", highest_values)
 
                 if np.sum(old_weights) == np.sum(highest_weights):
                     iter_unchanged +=1
                 else:
                     iter_unchanged = 0
                 iter += 1
-                if iter_unchanged > 3:
+                if iter_unchanged > 0:
                     epsilon *= 0.5
                     if epsilon < 0.0001:
-                        epsilon = 100
+                        epsilon = 0.2
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
