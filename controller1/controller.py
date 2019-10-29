@@ -98,7 +98,9 @@ class Controller(controller_template.Controller):
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
 
-
+        
+        # Compute feature_lens
+        
         ctrl_temp = Controller(chosen_track, bot_type=None, evaluate=False)
         fake_sensors = [53, 66, 100, 1, 172.1353274581511, 150, -1, 0, 0]
         features_len = len(ctrl_temp.compute_features(fake_sensors))
@@ -108,13 +110,13 @@ class Controller(controller_template.Controller):
         # Generations
         gen = 0
 
-        fitness = np.zeros(PARENTS)
+        fitness = np.array([self.run_episode(element) for element in elements])
         couples = np.zeros(PARENTS, 2)
         
 
         next_gen = np.zeros(*(PARENTS, features_len * 5)) # Auxiliar Array
-        best_weights = np.array(weights).reshape(5, -1)
-        best_fitness = 0
+        best_weights = elements[np.argmax(fitness)]
+        best_fitness = max(fitness)
 
         # Learning process
         try:
@@ -128,13 +130,13 @@ class Controller(controller_template.Controller):
 
                 # Next Generation
                 gen += 1
-
-                for i in range(len(fitness)):
-                    fitness[i] = normalize(fitness[i], min(fitness) , max(fitness))
+                
+                min_fit = min(fitness)
+                max_fit = max(fitness)
+                fitness = [normalize(fit, min_fit, max_fit) for fit in fitness]
 
                 # Couples from current generation
-                couples = np.random.choice(list(range(PARENTS)), p = fitness, size = (PARENTS, 2))
-
+                couples = np.random.choice(list(range(PARENTS)), p=fitness, size=(PARENTS, 2))
 
                 # Breeding
                 for offspring, (p1, p2) in enumerate(couples):
@@ -147,9 +149,7 @@ class Controller(controller_template.Controller):
                 # Mutation
                 for i in range(len(elements)):
                     for j in range(features_len * 5):
-                        elements[i,j] = \
-                            np.random.choice([elements[i,j], elements[i,j]+MUTATION_EPSILON*np.random.uniform(-1, 1)], \
-                                [1-MUTATION_RATIO, MUTATION_RATIO])
+                        elements[i, j] += np.random.choice([0, np.random.uniform(-1, 1) * MUTATION_EPSILON], [1 - MUTATION_RATIO, MUTATION_RATIO])
 
                 # Evaluate
                 fitness = np.array([self.run_episode(element) for element in elements])
