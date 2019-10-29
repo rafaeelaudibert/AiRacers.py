@@ -1,6 +1,8 @@
 import controller_template as controller_template
 import numpy as np
-
+PARENTS = 10
+MUTATION_RATIO = 0.05
+MUTATION_EPSILON = 0.005
 
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
@@ -8,6 +10,10 @@ class Controller(controller_template.Controller):
 
         # This initialization value make it think we are moving forward in the 1st step
         self.old_next_checkpoint = float("-inf")
+
+        # Initialize population values
+        self.elements = None
+        
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -92,17 +98,72 @@ class Controller(controller_template.Controller):
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
 
-        best_value = self.run_episode(weights)
+
+        ctrl_temp = Controller(chosen_track, bot_type=None, evaluate=False)
+        fake_sensors = [53, 66, 100, 1, 172.1353274581511, 150, -1, 0, 0]
+        features_len = len(ctrl_temp.compute_features(fake_sensors))
+
+        elements = np.random.uniform(-1, 1, size=(PARENTS, features_len * 5))
+        
+        # Generations
+        gen = 0
+
+        fitness = np.zeros(PARENTS)
+        couples = np.zeros(PARENTS, 2)
+        
+
+        next_gen = np.zeros(*(PARENTS, features_len * 5)) # Auxiliar Array
         best_weights = np.array(weights).reshape(5, -1)
+        best_fitness = 0
 
         # Learning process
         try:
+            for i in range(PARENTS):
+                fitness[i] = self.run_episode(elements[i])
+        
             while True:
+                
+                # Resets the offspring count
+                offspring = 0
+
+                # Next Generation
+                gen += 1
+
+                for i in range(len(fitness)):
+                    fitness[i] = normalize(fitness[i], min(fitness) , max(fitness))
+
+                # Couples from current generation
+                couples = np.random.choice(list(range(PARENTS)), p = fitness, size = (PARENTS, 2))
+
+
+                # Breeding
+                for offspring, (p1, p2) in enumerate(couples):
+                    for chromosome_it in range (features_len * 5): 
+                        next_gen[offspring, chromosome_it] = \
+                            np.random.choice([elements[p1, chromosome_it], elements[p2, chromosome_it]])
+
+                elements = next_gen
+
+                # Mutation
+                for i in range(len(elements)):
+                    for j in range(features_len * 5):
+                        elements[i,j] = \
+                            np.random.choice([elements[i,j], elements[i,j]+MUTATION_EPSILON*np.random.uniform(-1, 1)], \
+                                [1-MUTATION_RATIO, MUTATION_RATIO])
+
+                # Evaluate
+                fitness = np.array([self.run_episode(element) for element in elements])
+                
+                print (*fitness)
+
+                if max(fitness) > best_fitness:
+                    best_fitness = max(fitness)
+                    best_weights = elements[np.argmax(fitness)]
+
                 pass
+
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
-
-        # raise NotImplementedError("This Method Must Be Implemented")
 
         # Return the weights learned at this point
         return best_weights
