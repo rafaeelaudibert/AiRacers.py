@@ -9,6 +9,9 @@ class Controller(controller_template.Controller):
 
         # This initialization value make it think we are moving forward in the 1st step
         self.old_next_checkpoint = float("-inf")
+        
+        # Hyperparameters
+        self.neighbourhood_size = 30
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -94,38 +97,32 @@ class Controller(controller_template.Controller):
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
         def generate_neighbours(weights, epsilon):
-            neighbours = []
-            neighbours.append(weights.copy())
-            for i in range(len(weights)):
-                new_neighbour = weights.copy()
-                for n in range(len(weights)):
-                    new_neighbour[i] += random.choice((-1, 1)) * epsilon
-                    if random.randint(0, 10) == 1 and i != n:
-                        new_neighbour[n] += epsilon
-                    elif random.randint(0, 10) == 1 and i != n:
-                        new_neighbour[n] -= epsilon
-                neighbours.append(new_neighbour.copy())
+            neighbours = [weights.copy()] # Add the original weights in the array
+            
+            for i in range(self.neighbourhood_size):
+                new_neighbour = [weight + np.random.uniform(-1, 1) * epsilon for weight in weights]
+                neighbours.append(new_neighbour)
+                
             print(len(neighbours), "novos vizinhos gerados.")
-            return neighbours.copy()
+            return neighbours
 
         def compute_best_neighbour(neighbours):
             print("Computing ", len(neighbours), " neighbours.")
-            best_value = self.run_episode(neighbours[0])
+            best_value = self.run_episode(neighbours[0]) # First neighbour is the original one
             bestNeighbour = neighbours[0].copy()
-            for i in range(1,len(neighbours)):
-                new_value = self.run_episode(neighbours[i])
+            
+            for i, weight in enumerate(neighbours[1:]):
+                new_value = self.run_episode(weight)
                 print("Vizinho", i, "calculado como", new_value)
                 if new_value > best_value:
                     print("New best value found:", new_value, ">", best_value)
                     best_value = new_value
-                    bestNeighbour = neighbours[i].copy()
-            return best_value, bestNeighbour.copy()
+                    bestNeighbour = weight.copy()
+            return best_value, bestNeighbour
 
-        #best_value = self.run_episode(weights)
-        #best_weights = np.array(weights).reshape(5, -1)
         iter = 0
         iter_unchanged = 0
-        epsilon = 1
+        epsilon = 0.05
         best_weights = weights.copy()
         best_value = self.run_episode(best_weights)
         print("Best Score: ", best_value)
@@ -137,25 +134,21 @@ class Controller(controller_template.Controller):
                 old_value = best_value
                 best_value, best_weights = compute_best_neighbour(generate_neighbours(best_weights.copy(), epsilon).copy())
 
-                print("Best Score: ", best_value)
-                print()
+                print("Best Score: ", best_value, end='\n\n')
 
                 if best_value == old_value:
                     iter_unchanged +=1
+                    epsilon *= 0.8
                 else:
                     iter_unchanged = 0
+                    
                 iter += 1
-                if iter_unchanged > 0:
-                    epsilon *= 0.7
-                    if epsilon < 0.0001:
-                        epsilon = 10*random.random()
+                if iter_unchanged > 10:
+                    epsilon = 10*random.random()
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
-
-
-        # raise NotImplementedError("This Method Must Be Implemented")
 
         # Return the weights learned at this point
         return best_weights
