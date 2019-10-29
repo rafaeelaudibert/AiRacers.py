@@ -99,14 +99,15 @@ class Controller(controller_template.Controller):
             for j in range(len(best_weights)):
                 for i in range(len(best_weights[j])):
                     new_neighbour = best_weights[j].copy()
-                    new_neighbour[i] += epsilon
+                    for n in range(len(best_weights[j])):
+                        if random.randint(0, 5) == 1:
+                            new_neighbour[n] += epsilon
+                        elif random.randint(0, 5) == 1:
+                            new_neighbour[n] -= epsilon
                     neighbours.append(new_neighbour.copy())
-                for i in range(len(best_weights[j])):
-                    new_neighbour = best_weights[j].copy()
-                    new_neighbour[i] -= epsilon
-                    neighbours.append(new_neighbour.copy())
+
             print(len(neighbours), "novos vizinhos gerados.")
-            return neighbours.copy()
+            return neighbours
 
         def compute_best_neighbours(neighbours, highest_values, highest_weights, k_inst):
             print()
@@ -115,19 +116,19 @@ class Controller(controller_template.Controller):
                 new_value = self.run_episode(neighbours[i])
                 if new_value > highest_values[k_inst-1]:
                     print()
-                    print("New best value", k_inst-1, "found:", new_value, ">", highest_values[k_inst-1])
+                    print("New best value found:", new_value, ">", highest_values[k_inst-1])
 
                     highest_values.pop(k_inst-1)
                     highest_values.insert(k_inst-1, new_value)
 
-                    print("Highest Values:", highest_values)
 
                     last_value = highest_values[k_inst-1]
                     highest_values.sort(reverse=True)
                     for k in range(k_inst):
                         if highest_values[k] == last_value:
-                            highest_weights.insert(k, highest_weights[k_inst-1].copy())
-                            highest_weights.pop(k_inst-1)
+                            highest_weights.insert(k, highest_weights[k_inst-1])
+                            highest_weights.pop(k_inst)
+
 
                     print("Highest Valuez:", highest_values)
 
@@ -138,10 +139,10 @@ class Controller(controller_template.Controller):
         #best_value = self.run_episode(weights)
         #best_weights = np.array(weights).reshape(5, -1)
         # Learning process
-        k_inst = 10
+        k_inst = 4
         iter = 0
         iter_unchanged = 0
-        epsilon = 0.002
+        epsilon = 0.1
 
         highest_values = []
         highest_weights = []
