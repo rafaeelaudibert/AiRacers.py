@@ -1,9 +1,9 @@
 import controller_template as controller_template
 import numpy as np
+import multiprocessing
 import datetime
 import time
 import os
-import random
 
 MAX_BACKTRACKS = 4
 BACKTRACK_LIMIT = 8
@@ -130,9 +130,13 @@ class Controller(controller_template.Controller):
         self.mean = weights
         self.cov_matrix = np.identity(weights.shape[0])
 
+        # Initial values
         best_fitness = float("-inf")
         best_fitness_at_iter = 0
         best_weights = np.array(weights).reshape(5, -1)
+
+        # Multiprocessing pool
+        pool = multiprocessing.Pool(None)
 
         # Learning process
         try:
@@ -149,9 +153,8 @@ class Controller(controller_template.Controller):
                 params = np.random.multivariate_normal(
                     self.mean, self.cov_matrix, self.neighbourhood_size)
 
-                # Evaluate with the generated parameters
-                fitness = np.array([self.run_episode(param)
-                                    for param in params])
+                # Evaluate with the generated parameters using paralelism
+                fitness = np.array(pool.map(self.run_episode, params))
 
                 # Sort the parameters according to the evaluations,
                 # taking the `self.best_neighbourhood_size` better ones
@@ -213,6 +216,8 @@ class Controller(controller_template.Controller):
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
+        finally:
+            pool.close()  # Remember to close the multiprocessing pool
 
         # Return the weights learned at this point
         return best_weights
