@@ -1,9 +1,9 @@
 import controller_template as controller_template
 import numpy as np
-PARENTS = 50
-MUTATION_RATIO = 0.5
-MUTATION_EPSILON = 1.0
-T = 250
+PARENTS = 200
+MUTATION_RATIO = 0.1
+MUTATION_EPSILON = 0.3
+T = 400
 
 
 class Controller(controller_template.Controller):
@@ -112,47 +112,41 @@ class Controller(controller_template.Controller):
         """
 
         # Compute feature_lens
-
         ctrl_temp = Controller(self.track_name, bot_type=None, evaluate=False)
         fake_sensors = [53, 66, 100, 1, 172.1353274581511, 150, -1, 0, 0]
         features_len = len(ctrl_temp.compute_features(fake_sensors))
 
+        # Compute initial children
         elements = np.random.uniform(-1, 1, size=(PARENTS, features_len * 5))
 
         # Generations
         gen = 0
 
-        fitness = np.zeros((PARENTS))
-        fitness_exp = np.zeros((PARENTS))
+        # Fetch fitness
+        fitness = np.array([self.run_episode(element) for element in elements])
+        fitness_exp = np.exp(fitness / T)
+        exp_sum = sum(fitness_exp)
 
+        # Placeholders
         couples = np.zeros((PARENTS, 2))
-
         next_gen = np.zeros((PARENTS, features_len * 5))  # Auxiliar Array
-        best_weights = np.zeros((features_len * 5))
+
+        # Store best weights and fitness
+        best_weights = elements[np.argmax(fitness)]
         best_fitness = max(fitness)
 
         # Learning process
         try:
-            for i in range(PARENTS):
-                fitness[i] = self.run_episode(elements[i])
-                fitness_exp[i] = np.exp(fitness[i]/T)
-
-            exp_sum = sum(fitness_exp)
             while True:
-
-                # Resets the offspring count
-                offspring = 0
-
                 # Next Generation
                 gen += 1
 
-                fitness = [val/exp_sum for val in fitness_exp]
-
                 # Couples from current generation
                 couples = np.random.choice(
-                    list(range(PARENTS)), p=fitness, size=(PARENTS, 2))
+                    list(range(PARENTS)), p=[fit / exp_sum for fit in fitness_exp], size=(PARENTS, 2))
                 print("Coupĺes:")
                 print(*couples)
+
                 # Breeding
                 for offspring, (p1, p2) in enumerate(couples):
                     for chromosome_it in range(features_len * 5):
@@ -160,6 +154,10 @@ class Controller(controller_template.Controller):
                             np.random.choice(
                                 [elements[p1, chromosome_it], elements[p2, chromosome_it]])
 
+                # Keep the best in the next generation for sure
+                next_gen[0] = elements[np.argmax(fitness)]
+
+                # Update the array
                 elements = next_gen
 
                 # Mutation
@@ -169,20 +167,20 @@ class Controller(controller_template.Controller):
                                                            1 - MUTATION_RATIO, MUTATION_RATIO])
 
                 # Evaluate
-                for i in range(PARENTS):
-                    fitness[i] = self.run_episode(elements[i])
-                    fitness_exp[i] = np.exp(fitness[i]/T)
-
+                fitness = [self.run_episode(element) for element in elements]
+                fitness_exp = np.exp(fitness / T)
                 exp_sum = sum(fitness_exp)
 
-                print("Fitness Gen: ", gen)
-                print(*fitness)
-
+                # Update best fitness and weights
                 max_fitness = max(fitness)
+
+                print("Best Fitness at Gen {} is {}".format(gen, max(fitness)))
+                print(*fitness)
 
                 if max_fitness > best_fitness:
                     best_fitness = max_fitness
-                    best_weights = elements[fitness.index(max_fitness)]
+                    best_weights = elements[np.argmax(fitness)]
+
                 print("Best Fitness:")
                 print(best_fitness)
 
