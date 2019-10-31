@@ -167,7 +167,8 @@ class Controller(controller_template.Controller):
                                                            1 - MUTATION_RATIO, MUTATION_RATIO])
 
                 # Evaluate
-                fitness = [self.run_episode(element) for element in elements]
+                fitness = np.array([self.run_episode(element)
+                                    for element in elements])
                 fitness_exp = np.exp(fitness / T)
                 exp_sum = sum(fitness_exp)
 
