@@ -3,6 +3,7 @@ import numpy as np
 import datetime
 import time
 import os
+import json
 
 MAX_BACKTRACKS = 4
 BACKTRACK_LIMIT = 8
@@ -31,6 +32,8 @@ class Controller(controller_template.Controller):
         # Placeholder parameters for CMA-ES
         self.mean = None
         self.cov_matrix = None
+
+        self.data = []
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -198,6 +201,14 @@ class Controller(controller_template.Controller):
                 print('Iter', iteration, '\tLoss:', loss, '\tMax:', max(
                     fitness), 'Best at iter:', best_fitness_at_iter, 'with value', best_fitness, end='\n\n')
 
+                # Save info
+                self.data.append({
+                    'epoch': iteration,
+                    'fitness': max(fitness),
+                    'best_weight': list(best_params[0]),
+                    'time': datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S')
+                })
+
                 # Update iteration
                 iteration += 1
 
@@ -212,6 +223,10 @@ class Controller(controller_template.Controller):
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
+
+        # Save data to file
+        with open('./data/common.json', 'w') as f:
+            json.dump(self.data, f)
 
         # Return the weights learned at this point
         return best_weights
