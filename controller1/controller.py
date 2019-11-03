@@ -115,6 +115,7 @@ class Controller(controller_template.Controller):
 
         epsilon = 2
         multiple_epsilon_sum = 0
+        crazy_epsilon = False
 
         new_order = True
         weight_numbers = []
@@ -190,15 +191,25 @@ class Controller(controller_template.Controller):
                 if np.sum(best_weights) == np.sum(old_weights):
                     iter_unchanged +=1
                     if iter_unchanged > len(best_weights):
-                        epsilon = 2*random.random()
+                        if not crazy_epsilon:
+                            epsilon = 2*random.random()
                     if iter_unchanged > len(best_weights)*(2+multiple_epsilon_sum):
                         multiple_epsilon_sum += 1
                         if multiple_epsilon_sum >= len(weight_numbers):
                             multiple_epsilon_sum = 0
                             new_order = True
+                            crazy_epsilon = False
                 else:
                     iter_unchanged = 0
                     multiple_epsilon_sum = 0
+
+                #Crazy epsilon to try to run from maximum local
+                if iter_unchanged == 400:
+                    crazy_epsilon = True
+                    epsilon = 100
+                    multiple_epsilon_sum = 0
+                    new_order = True
+
 
                 iter += 1
 
