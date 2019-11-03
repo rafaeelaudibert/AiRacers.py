@@ -1,6 +1,10 @@
 import controller_template as controller_template
 import numpy as np
 import random
+import datetime
+import time
+import os
+import json
 
 
 class Controller(controller_template.Controller):
@@ -15,6 +19,7 @@ class Controller(controller_template.Controller):
         self.last_action = 5  # Nothing
         self.no_turn_times = 0
 
+        self.data = []
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
     #######################################################################
@@ -104,83 +109,112 @@ class Controller(controller_template.Controller):
         :param weights: initial weights of the controller (either loaded from a file or generated randomly)
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
-        def generate_neighbours(best_weights, epsilon, many):
-            neighbours = []
-            neighbours.append(best_weights.copy())
-            for i in range(len(best_weights)): #Não faz mudancas no vizinho de maior pontuacao
-                new_neighbour = best_weights.copy()
-                new_neighbour[i] += random.choice((-1, 1)) * epsilon
-                if many == 1:
-                    for n in range(len(best_weights)):
-                        if random.randint(0, 10) == 1 and i != n:
-                            new_neighbour[n] += epsilon
-                        elif random.randint(0, 10) == 1 and i != n:
-                            new_neighbour[n] -= epsilon
-                neighbours.append(new_neighbour.copy())
-            print(len(neighbours), "novos vizinhos gerados.")
-            return neighbours.copy()
 
-        def compute_best_neighbour(neighbours):
-            print("Computing ", len(neighbours), " neighbours.")
-            best_value = self.run_episode(neighbours[0])
-            old_value = best_value
-            bestNeighbour = neighbours[0].copy()
-            print("Best Score:", best_value)
-            for i in range(1,len(neighbours)):
-                new_value = self.run_episode(neighbours[i])
-                print("Vizinho", i, "calculado como", new_value)
-                if new_value > best_value:
-                    print("New best value found:", new_value, ">", best_value)
-                    best_value = new_value
-                    bestNeighbour = neighbours[i].copy()
-            return best_value, bestNeighbour.copy(), old_value
-
-        #best_value = self.run_episode(weights)
-        #best_weights = np.array(weights).reshape(5, -1)
         iter = 0
         iter_unchanged = 0
-        epsilon = 1*random.random()
-        many = 1
+
+        epsilon = 2
+        multiple_epsilon_sum = 0
+
+        new_order = True
+        weight_numbers = []
+        weight_index = 0
+
+        neighbours = []
         best_weights = weights.copy()
-        print(self.run_episode(weights))
-        print(self.run_episode(weights))
+        best_value = self.run_episode(best_weights.copy())
+
         # Learning process
         try:
 
             while True:
-                print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
-
-                best_value, best_weights, old_value = compute_best_neighbour(generate_neighbours(best_weights.copy(), epsilon, 1).copy())
-
-                print("Best Score:  ", best_value)
-                print("Old Score:   ", old_value)
                 print()
+                print("Epsilon:", epsilon, " Iteration:", iter, " Unchanged Iterations:", iter_unchanged)
 
-                if best_value == old_value:
+                old_weights = best_weights.copy()
+                old_value = self.run_episode(old_weights.copy())
+
+                #Generate new random weight order
+                if(new_order):
+                    weight_numbers.clear()
+                    for i in range(len(best_weights)):
+                        weight_numbers.append(i)
+                    random.shuffle(weight_numbers)
+                    weight_index = 0
+                    new_order = False
+
+                #Generate neighbours
+                print("Generating neighbours using", multiple_epsilon_sum, "multiple weights...")
+                neighbours.clear()
+                for i in range(6):
+                    new_neighbour = best_weights.copy()
+                    for j in range(multiple_epsilon_sum + 1):
+                        if weight_index + j >= len(weight_numbers):
+                            new_neighbour[weight_numbers[weight_index - j]] += epsilon * 2 ^ i
+                        else:
+                            new_neighbour[weight_numbers[weight_index + j]] += epsilon * 2 ^ i
+                    neighbours.append(new_neighbour.copy())
+                for i in range(6):
+                    new_neighbour = best_weights.copy()
+                    for j in range(multiple_epsilon_sum + 1):
+                        if weight_index + j >= len(weight_numbers):
+                            new_neighbour[weight_numbers[weight_index - j]] -= epsilon * 2 ^ i
+                        else:
+                            new_neighbour[weight_numbers[weight_index + j]] -= epsilon * 2 ^ i
+                    neighbours.append(new_neighbour.copy())
+                print("", len(neighbours), "new neighbours generated.")
+
+                #Compute Best Neighbours
+                print("Computing", len(neighbours), "neighbours...")
+                for i in range(len(neighbours)):
+                    new_value = self.run_episode(neighbours[i].copy())
+                    print(" Neighbour:", i, " Score:", new_value)
+                    if new_value > best_value:
+                        print("  New best value found:", new_value, ">", best_value)
+                        best_value = new_value
+                        best_weights = neighbours[i].copy()
+
+                #Checking fitness
+                if best_weights != old_weights:
+                    if self.run_episode(best_weights.copy()) < old_value:
+                        print("Best Score wrong:", best_value)
+                        best_weights = old_weights.copy()
+                        best_value = old_value
+                    else:
+                        print("Increased: +", best_value-old_value)
+
+                #Iterations sums
+                weight_index += 1
+                if weight_index == len(best_weights):
+                    new_order = True
+                if np.sum(best_weights) == np.sum(old_weights):
                     iter_unchanged +=1
                 else:
                     iter_unchanged = 0
+                    multiple_epsilon_sum = 0
+                    if iter_unchanged > len(best_weights):
+                        epsilon = 2*random.random()
+                    if iter_unchanged > len(best_weights)*(2+multiple_epsilon_sum):
+                        multiple_epsilon_sum += 1
+                        if multiple_epsilon_sum >= len(weight_numbers):
+                            multiple_epsilon_sum = 0
+                            new_order = True
                 iter += 1
-                if iter_unchanged > 0:
-                    epsilon = 1*random.random()
-                    if iter_unchanged%3 == 0:
-                        print("3")
-                        many += 1
-                        if many > 1:
-                            many = 0
-                        epsilon = 0.1*random.random()
-                    if iter_unchanged%4 == 0:
-                        print("4")
-                        epsilon = 10*random.random()
-                    if iter_unchanged%5 == 0:
-                        print("5")
-                        epsilon = 100*random.random()
 
-
+                # Save info
+                self.data.append({
+                    'epoch': iter,
+                    'fitness': best_value,
+                    'best_weight': list(best_weights),
+                    'time': datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S')
+                })
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
 
+        # Save data to file
+        with open('./data/common.json', 'w') as f:
+            json.dump(self.data, f)
 
         # raise NotImplementedError("This Method Must Be Implemented")
 
