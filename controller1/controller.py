@@ -129,7 +129,7 @@ class Controller(controller_template.Controller):
 
             while True:
                 print()
-                print("Epsilon:", epsilon, " Iteration:", iter, " Unchanged Iterations:", iter_unchanged)
+                print("Best Score:", best_value, " Epsilon:", epsilon, " Iteration:", iter, " Unchanged Iterations:", iter_unchanged)
 
                 old_weights = best_weights.copy()
                 old_value = self.run_episode(old_weights.copy())
@@ -175,7 +175,7 @@ class Controller(controller_template.Controller):
                         best_weights = neighbours[i].copy()
 
                 #Checking fitness
-                if best_weights != old_weights:
+                if np.sum(best_weights) != np.sum(old_weights):
                     if self.run_episode(best_weights.copy()) < old_value:
                         print("Best Score wrong:", best_value)
                         best_weights = old_weights.copy()
@@ -189,9 +189,6 @@ class Controller(controller_template.Controller):
                     new_order = True
                 if np.sum(best_weights) == np.sum(old_weights):
                     iter_unchanged +=1
-                else:
-                    iter_unchanged = 0
-                    multiple_epsilon_sum = 0
                     if iter_unchanged > len(best_weights):
                         epsilon = 2*random.random()
                     if iter_unchanged > len(best_weights)*(2+multiple_epsilon_sum):
@@ -199,6 +196,10 @@ class Controller(controller_template.Controller):
                         if multiple_epsilon_sum >= len(weight_numbers):
                             multiple_epsilon_sum = 0
                             new_order = True
+                else:
+                    iter_unchanged = 0
+                    multiple_epsilon_sum = 0
+
                 iter += 1
 
                 # Save info
