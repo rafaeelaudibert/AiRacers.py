@@ -157,7 +157,8 @@ class Controller(controller_template.Controller):
                 for i in range(1):
                     new_neighbour = best_weights.copy()
                     new_neighbour[weight_numbers[weight_index]] += epsilons[weight_numbers[weight_index]] #* 2 ** (float(i))
-                    """for j in range(multiple_epsilon_sum):
+                    """ Possibility to change more than one weight per neightbour (not updated)
+                    for j in range(multiple_epsilon_sum):
                         if random.choice([0, 1]):
                             new_neighbour[weight_numbers[weight_numbers[
                                 random.randint(0, len(
@@ -167,11 +168,12 @@ class Controller(controller_template.Controller):
                 for i in range(1):
                     new_neighbour = best_weights.copy()
                     new_neighbour[weight_numbers[weight_index]] -= epsilons[weight_numbers[weight_index]] #* 2 ** (float(i))
-                    '''for j in range(multiple_epsilon_sum):
+                    """ Possibility to change more than one weight per neightbour (not updated)
+                    for j in range(multiple_epsilon_sum):
                         if random.choice([0, 1]):
                             new_neighbour[weight_numbers[
                                 weight_numbers[random.randint(0, len(
-                                    weight_numbers)-1)]]] += epsilon * random.choice([-1, 1])'''
+                                    weight_numbers)-1)]]] += epsilon * random.choice([-1, 1])"""
                     neighbours.append(new_neighbour.copy())
                 print("", len(neighbours), "new neighbours generated.")
 
@@ -195,7 +197,6 @@ class Controller(controller_template.Controller):
                     else:
                         print("Increased: +", best_value-old_value)
 
-                #Iterations sums
 
                 # Save info
                 self.data.append({
@@ -207,6 +208,7 @@ class Controller(controller_template.Controller):
                     'time': datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S')
                 })
 
+                # Iterations count and epsilon variation
                 epsilons[weight_numbers[weight_index]] *= 1.1
                 if np.sum(best_weights) == np.sum(old_weights):
                     iter_epsilon_unchanged[weight_numbers[weight_index]] += 1
@@ -217,12 +219,6 @@ class Controller(controller_template.Controller):
                         epsilons[weight_numbers[weight_index]] /= 2
                     if epsilons[weight_numbers[weight_index]] > 10:
                         epsilons[weight_numbers[weight_index]] = random.random()
-
-                    '''if iter_unchanged > len(best_weights) * (2 + multiple_epsilon_sum):
-                        multiple_epsilon_sum += 1
-                        if multiple_epsilon_sum >= 3:
-                            multiple_epsilon_sum = 3
-                            new_order = True'''
                 else:
                     iter_epsilon_unchanged[weight_numbers[weight_index]] = 0
                     multiple_epsilon_sum = 0
@@ -230,27 +226,6 @@ class Controller(controller_template.Controller):
                 weight_index += 1
                 if weight_index == len(best_weights):
                     new_order = True
-
-                '''weight_index += 1
-                if weight_index == len(best_weights):
-                    new_order = True
-                if np.sum(best_weights) == np.sum(old_weights):
-                    iter_unchanged +=1
-                    if iter_unchanged > len(best_weights)+1:
-                        epsilon = 4*random.random()
-                    if iter_unchanged > len(best_weights)*(2+multiple_epsilon_sum):
-                        multiple_epsilon_sum += 1
-                        if multiple_epsilon_sum >= 3:
-                            multiple_epsilon_sum = 3
-                            new_order = True
-                else:
-                    iter_unchanged = 0
-                    multiple_epsilon_sum = 0'''
-
-
-                #39770
-                #python AIRacers.py -w params/20191103175007.txt -t interlagos -b ninja_bot learn
-
                 iter += 1
 
 
