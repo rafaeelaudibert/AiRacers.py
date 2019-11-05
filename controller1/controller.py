@@ -1,9 +1,9 @@
 import controller_template as controller_template
 import numpy as np
-PARENTS = 200
-MUTATION_RATIO = 0.1
-MUTATION_EPSILON = 0.3
-T = 400
+PARENTS = 50
+MUTATION_RATIO = 0.5
+MUTATION_EPSILON = 0.1
+T = 250
 
 
 class Controller(controller_template.Controller):
@@ -20,6 +20,8 @@ class Controller(controller_template.Controller):
 
         # Initialize population values
         self.elements = None
+
+        self.data = []
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -138,13 +140,11 @@ class Controller(controller_template.Controller):
         # Learning process
         try:
             while True:
-                # Next Generation
-                gen += 1
-
-                # Couples from current generation
+                
+                # Natural Selection
                 couples = np.random.choice(
                     list(range(PARENTS)), p=[fit / exp_sum for fit in fitness_exp], size=(PARENTS, 2))
-                print("Coupĺes:")
+                print("Couples:")
                 print(*couples)
 
                 # Breeding
@@ -185,10 +185,25 @@ class Controller(controller_template.Controller):
                 print("Best Fitness:")
                 print(best_fitness)
 
+                # Save info
+                self.data.append({
+                    'generation': iteration,
+                    'fitness': max(fitness),
+                    'best_weight': list(best_weights[0]),
+                    'time': datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S')
+                })
+
+                # Next Generation
+                gen += 1
+
                 pass
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
+
+        # Save data to file
+        with open('./data/common.json', 'w') as f:
+            json.dump(self.data, f)
 
         # Return the weights learned at this point
         return best_weights
