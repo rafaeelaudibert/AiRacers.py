@@ -105,105 +105,152 @@ class Controller(controller_template.Controller):
         :param weights: initial weights of the controller (either loaded from a file or generated randomly)
         :return: the best weights found by your learning algorithm, after the learning process is over
         """
-        def generate_neighbours(best_weights, epsilon):
-            neighbours = []
-            for j in range(len(best_weights)):
-                for i in range(len(best_weights[j])):
-                    new_neighbour = best_weights[j].copy()
-                    new_neighbour[i] += random.choice((-1, 1))*epsilon
-                    for n in range(len(best_weights[j])):
-                        if random.randint(0, 9) == 1 and i != n:
-                            new_neighbour[n] += epsilon
-                        elif random.randint(0, 9) == 1 and i != n:
-                            new_neighbour[n] -= epsilon
-                    neighbours.append(new_neighbour.copy())
 
-            print(len(neighbours), "novos vizinhos gerados.")
-            return neighbours.copy()
-
-        def compute_best_neighbours(neighbours, highest_values, highest_weights, k_inst):
-            print()
-            print("Computing ", len(neighbours), " neighbours.")
-            for i in range(len(neighbours)):
-                new_value = self.run_episode(neighbours[i])
-                if new_value > highest_values[k_inst-1]:
-                    print()
-                    print("New best value found:", new_value, ">", highest_values[k_inst-1])
-                    equal_value = 0
-                    for b in range(len(highest_values)):
-                        if new_value == highest_values[b]:
-                            equal_value = 1
-                            print("New value is equal!")
-                    if equal_value == 0:
-                        highest_values.pop(k_inst-1)
-                        highest_values.insert(k_inst-1, new_value)
-
-                        last_value = highest_values[k_inst-1]
-                        highest_values.sort(reverse=True)
-                        for k in range(k_inst):
-                            if highest_values[k] == last_value:
-                                highest_weights.insert(k, neighbours[i].copy())
-                                highest_weights.pop(k_inst)
-                                break
-
-
-                    print("Highest Values:", highest_values)
-                print("Vizinho", i, "calculado como", new_value)
-            return highest_values.copy(), highest_weights.copy()
-
-
-        #best_value = self.run_episode(weights)
-        #best_weights = np.array(weights).reshape(5, -1)
         # Learning process
-        k_inst = 10
+        k_inst = 5
         iter = 0
-        iter_unchanged = 0
-        epsilon = 1*random.random()
-        print(self.run_episode(weights))
+        epsilon = 0.5
         highest_values = []
         highest_weights = []
-        highest_weights.append(weights.copy())
+        random_weights = []
+        epsilons = []
+        iter_epsilon_unchanged = []
+
+        random_weights.append(weights.copy())
         highest_values.append(-100000000)
+        epsilons.append([epsilon for i in range(len(weights))])
+        iter_epsilon_unchanged.append([0 for i in range(len(weights))])
         for j in range(1, k_inst):
-            highest_weights.append([random.uniform(-1, 1) for i in range(0, len(weights))])
+            random_weights.append([random.uniform(-1, 1) for i in range(0, len(weights))])
             highest_values.append(-100000000)
-        highest_values, highest_weights = compute_best_neighbours(highest_weights.copy(), highest_values.copy(), highest_weights.copy(), k_inst)
+            epsilons.append([epsilon for i in range(len(weights))])
+            iter_epsilon_unchanged.append([0 for i in range(len(weights))])
+
+        highest_weights.append(epsilons)
+        highest_weights.append(iter_epsilon_unchanged)
+        highest_weights.append(random_weights)
+        highest_weights.append(random_weights)
+
+        multiple_epsilon_sum = 0
+
+        new_order = True
+        weight_numbers = []
+        weight_index = 0
+
+        neighbours = []
+
+        new_epsilon = []
+        new_iter = []
+        new_weight = []
+        new_old = []
 
         try:
             while True:
                 print()
-                print("Iteration", iter, "after", iter_unchanged, "unchanged iterations. Epsilon actual value is", epsilon)
-                print()
 
-                old_values = highest_values.copy
-                highest_values, highest_weights = compute_best_neighbours( generate_neighbours(highest_weights.copy(), epsilon).copy(),
-                                                                              highest_values.copy(), highest_weights.copy(), k_inst)
-                print("Highest Values:", highest_values)
-                best_weights = highest_weights[0].copy()
-                print(self.run_episode(best_weights))
-                if np.sum(old_values) == np.sum(highest_values):
-                    iter_unchanged +=1
-                else:
-                    iter_unchanged = 0
+                for i in range(len(highest_weights[2])):
+                    highest_weights[3][i] = highest_weights[2][i].copy()
+
+                # Generate new random weight order
+                if (new_order):
+                    weight_numbers.clear()
+                    for i in range(len(weights)):
+                        weight_numbers.append(i)
+                    random.shuffle(weight_numbers)
+                    weight_index = 0
+                    new_order = False
+
+                print(" Iteration:", iter, " Best Score:", highest_values)
+
+                # Generate neighbours
+                neighbours.clear()
+                new_epsilon.clear()
+                new_iter.clear()
+                new_weight.clear()
+                new_old.clear()
+                for j in range(len(highest_weights[2])):
+                    k = 0
+                    for i in range(1):
+                        new_epsilon.append(highest_weights[0][j].copy())
+                        new_iter.append(highest_weights[1][j].copy())
+                        new_weight.append(highest_weights[2][j].copy())
+                        new_old.append(highest_weights[3][j].copy())
+                        new_weight[k][weight_numbers[weight_index]] += new_epsilon[k][
+                            weight_numbers[weight_index]]  # * 2 ** (float(i))
+                        k =+ 1
+                        new_epsilon.append(highest_weights[0][j].copy())
+                        new_iter.append(highest_weights[1][j].copy())
+                        new_weight.append(highest_weights[2][j].copy())
+                        new_old.append(highest_weights[3][j].copy())
+                        new_weight[k][weight_numbers[weight_index]] -= new_epsilon[k][
+                            weight_numbers[weight_index]]  # * 2 ** (float(i))
+                        k =+ 1
+
+                neighbours.append(new_epsilon.copy())
+                neighbours.append(new_iter.copy())
+                neighbours.append(new_weight.copy())
+                neighbours.append(new_old.copy())
+                print("", len(neighbours[2]), "new neighbours generated.")
+
+                # Compute Best Neighbours
+                print("Computing", len(neighbours[2]), "neighbours...")
+                for i in range(len(neighbours[2])):
+                    new_value = self.run_episode(neighbours[2][i].copy())
+                    #print(" Neighbour:", i, " Score:", new_value)
+                    if new_value > highest_values[k_inst - 1]:
+                        equal_value = 0
+                        for b in range(len(highest_values)):
+                            if new_value == highest_values[b]:
+                                equal_value = 1
+                                print("New value is equal!")
+                        if equal_value == 0:
+                            print("  New best value found:", new_value, ">", highest_values[k_inst - 1])
+                            highest_values.pop(k_inst - 1)
+                            highest_values.insert(k_inst - 1, new_value)
+
+                            last_value = highest_values[k_inst - 1]
+                            highest_values.sort(reverse=True)
+                            for k in range(k_inst):
+                                if highest_values[k] == last_value:
+                                    highest_weights[0].insert(k, neighbours[0][i].copy())
+                                    highest_weights[0].pop(k_inst)
+                                    highest_weights[1].insert(k, neighbours[1][i].copy())
+                                    highest_weights[1].pop(k_inst)
+                                    highest_weights[2].insert(k, neighbours[2][i].copy())
+                                    highest_weights[2].pop(k_inst)
+                                    highest_weights[3].insert(k, neighbours[3][i].copy())
+                                    highest_weights[3].pop(k_inst)
+                                    break
+
+                # Iterations count and epsilon variation
+                for i in range(len(highest_weights[2])):
+                    highest_weights[0][i][weight_numbers[weight_index]] *= 1.1
+                    if np.sum(highest_weights[2][i]) == np.sum(highest_weights[3][i]):
+                        highest_weights[1][i][weight_numbers[weight_index]] += 1
+                        if highest_weights[1][i][weight_numbers[weight_index]] > 5 + 9:
+                            highest_weights[0][i][weight_numbers[weight_index]] *= (2 ** 10)
+                            highest_weights[1][i][weight_numbers[weight_index]] = 0
+                        elif highest_weights[1][i][weight_numbers[weight_index]] > 5:
+                            highest_weights[1][i][weight_numbers[weight_index]] /= 2
+                        if highest_weights[0][i][weight_numbers[weight_index]] > 10:
+                            highest_weights[0][i][weight_numbers[weight_index]] = random.random()
+                    else:
+                        highest_weights[1][i][weight_numbers[weight_index]] = 0
+                        multiple_epsilon_sum = 0
+
+                weight_index += 1
+                if weight_index == len(weights):
+                    new_order = True
                 iter += 1
-                if iter_unchanged > 0:
-                    epsilon *= 1*random.random()
-                    if iter_unchanged%3 == 0:
-                        print("3")
-                        epsilon = 0.1*random.random()
-                    if iter_unchanged%4 == 0:
-                        print("4")
-                        epsilon = 10*random.random()
-                    if iter_unchanged%5 == 0:
-                        print("5")
-                        epsilon = 100*random.random()
 
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
 
-        best_weights = highest_weights[0]
-        print(self.run_episode(best_weights))
+
+
+        best_weights = highest_weights[0].copy()
+        print(self.run_episode(best_weights.copy()))
         # raise NotImplementedError("This Method Must Be Implemented")
 
         # Return the weights learned at this point
