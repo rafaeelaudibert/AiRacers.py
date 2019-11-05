@@ -5,7 +5,7 @@ import datetime
 import time
 import os
 import json
-
+import math
 
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
@@ -112,25 +112,29 @@ class Controller(controller_template.Controller):
 
         iter = 0
         iter_unchanged = 0
-
-        epsilon = 2
+        #0.2 2 0.5 0.9 1.3
+        epsilon = 0.5
         multiple_epsilon_sum = 0
-        crazy_epsilon = False
+        epsilons = [epsilon for i in range(len(weights))]
+        iter_epsilon_unchanged = [0 for i in range(len(weights))]
 
         new_order = True
         weight_numbers = []
         weight_index = 0
 
+
+        print(epsilons)
         neighbours = []
         best_weights = weights.copy()
         best_value = self.run_episode(best_weights.copy())
+
 
         # Learning process
         try:
 
             while True:
                 print()
-                print("Best Score:", best_value, " Epsilon:", epsilon, " Iteration:", iter, " Unchanged Iterations:", iter_unchanged)
+
 
                 old_weights = best_weights.copy()
                 old_value = self.run_episode(old_weights.copy())
@@ -144,26 +148,33 @@ class Controller(controller_template.Controller):
                     weight_index = 0
                     new_order = False
 
+                print("Best Score:", best_value, " \u03B5 =", epsilons[weight_numbers[weight_index]],
+                      " Unchanged \u03B5 Iterations:", iter_epsilon_unchanged[weight_numbers[weight_index]], " Iteration:", iter)
+
                 #Generate neighbours
                 print("Generating neighbours using", multiple_epsilon_sum, "multiple weights...")
                 neighbours.clear()
-                for i in range(6):
+                for i in range(1):
                     new_neighbour = best_weights.copy()
-                    for j in range(multiple_epsilon_sum + 1):
-                        if weight_index + j >= len(weight_numbers):
-                            new_neighbour[weight_numbers[weight_index - j]] += epsilon * 2 ^ i
-                        else:
-                            new_neighbour[weight_numbers[weight_index + j]] += epsilon * 2 ^ i
+                    new_neighbour[weight_numbers[weight_index]] += epsilons[weight_numbers[weight_index]] #* 2 ** (float(i))
+                    """for j in range(multiple_epsilon_sum):
+                        if random.choice([0, 1]):
+                            new_neighbour[weight_numbers[weight_numbers[
+                                random.randint(0, len(
+                                    weight_numbers)-1)]]] += epsilon * random.choice([-1, 1])"""
                     neighbours.append(new_neighbour.copy())
-                for i in range(6):
+
+                for i in range(1):
                     new_neighbour = best_weights.copy()
-                    for j in range(multiple_epsilon_sum + 1):
-                        if weight_index + j >= len(weight_numbers):
-                            new_neighbour[weight_numbers[weight_index - j]] -= epsilon * 2 ^ i
-                        else:
-                            new_neighbour[weight_numbers[weight_index + j]] -= epsilon * 2 ^ i
+                    new_neighbour[weight_numbers[weight_index]] -= epsilons[weight_numbers[weight_index]] #* 2 ** (float(i))
+                    '''for j in range(multiple_epsilon_sum):
+                        if random.choice([0, 1]):
+                            new_neighbour[weight_numbers[
+                                weight_numbers[random.randint(0, len(
+                                    weight_numbers)-1)]]] += epsilon * random.choice([-1, 1])'''
                     neighbours.append(new_neighbour.copy())
                 print("", len(neighbours), "new neighbours generated.")
+
 
                 #Compute Best Neighbours
                 print("Computing", len(neighbours), "neighbours...")
@@ -185,41 +196,64 @@ class Controller(controller_template.Controller):
                         print("Increased: +", best_value-old_value)
 
                 #Iterations sums
-                weight_index += 1
-                if weight_index == len(best_weights):
-                    new_order = True
-                if np.sum(best_weights) == np.sum(old_weights):
-                    iter_unchanged +=1
-                    if iter_unchanged > len(best_weights):
-                        if not crazy_epsilon:
-                            epsilon = 2*random.random()
-                    if iter_unchanged > len(best_weights)*(2+multiple_epsilon_sum):
-                        multiple_epsilon_sum += 1
-                        if multiple_epsilon_sum >= len(weight_numbers):
-                            multiple_epsilon_sum = 0
-                            new_order = True
-                            crazy_epsilon = False
-                else:
-                    iter_unchanged = 0
-                    multiple_epsilon_sum = 0
-
-                #Crazy epsilon to try to run from maximum local
-                if iter_unchanged == 400:
-                    crazy_epsilon = True
-                    epsilon = 100
-                    multiple_epsilon_sum = 0
-                    new_order = True
-
-
-                iter += 1
 
                 # Save info
                 self.data.append({
                     'epoch': iter,
+                    'epsilon': epsilons[weight_numbers[weight_index]],
+                    'weight_index': weight_numbers[weight_index],
                     'fitness': best_value,
-                    'best_weight': list(best_weights),
+                    'best_weight': list(best_weights.copy()),
                     'time': datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S')
                 })
+
+                epsilons[weight_numbers[weight_index]] *= 1.1
+                if np.sum(best_weights) == np.sum(old_weights):
+                    iter_epsilon_unchanged[weight_numbers[weight_index]] += 1
+                    if iter_epsilon_unchanged[weight_numbers[weight_index]] > 5 + 9:
+                        epsilons[weight_numbers[weight_index]] *= (2 ** 10)
+                        iter_epsilon_unchanged[weight_numbers[weight_index]] = 0
+                    elif iter_epsilon_unchanged[weight_numbers[weight_index]] > 5:
+                        epsilons[weight_numbers[weight_index]] /= 2
+                    if epsilons[weight_numbers[weight_index]] > 10:
+                        epsilons[weight_numbers[weight_index]] = random.random()
+
+                    '''if iter_unchanged > len(best_weights) * (2 + multiple_epsilon_sum):
+                        multiple_epsilon_sum += 1
+                        if multiple_epsilon_sum >= 3:
+                            multiple_epsilon_sum = 3
+                            new_order = True'''
+                else:
+                    iter_epsilon_unchanged[weight_numbers[weight_index]] = 0
+                    multiple_epsilon_sum = 0
+
+                weight_index += 1
+                if weight_index == len(best_weights):
+                    new_order = True
+
+                '''weight_index += 1
+                if weight_index == len(best_weights):
+                    new_order = True
+                if np.sum(best_weights) == np.sum(old_weights):
+                    iter_unchanged +=1
+                    if iter_unchanged > len(best_weights)+1:
+                        epsilon = 4*random.random()
+                    if iter_unchanged > len(best_weights)*(2+multiple_epsilon_sum):
+                        multiple_epsilon_sum += 1
+                        if multiple_epsilon_sum >= 3:
+                            multiple_epsilon_sum = 3
+                            new_order = True
+                else:
+                    iter_unchanged = 0
+                    multiple_epsilon_sum = 0'''
+
+
+                #39770
+                #python AIRacers.py -w params/20191103175007.txt -t interlagos -b ninja_bot learn
+
+                iter += 1
+
+
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
@@ -231,7 +265,7 @@ class Controller(controller_template.Controller):
         # raise NotImplementedError("This Method Must Be Implemented")
 
         # Return the weights learned at this point
-        return best_weights
+        return best_weights.copy()
 
     @staticmethod
     def normalize(val, min, max):
