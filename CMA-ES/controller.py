@@ -1,17 +1,29 @@
 import controller_template as controller_template
 import numpy as np
+import datetime
+import time
+import os
+import json
 
+MAX_BACKTRACKS = 4
+BACKTRACK_LIMIT = 8
 
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
         super().__init__(track, evaluate=evaluate, bot_type=bot_type)
 
-        # Quantity of neighbours to generate and to get
-        self.neighbourhood_size = 50
-        self.best_neighbourhood_size = 15
+        # Quantity of neighbours to generate and to get,
+        # and to start generating weights
+        self.neighbourhood_size = 60
+        self.best_neighbourhood_size = int(self.neighbourhood_size / 3)
+
+        # Features hyperparamets
+        self.vel_threshold = 120
+        self.last_action = 5  # Nothing
+        self.no_turn_times = 0
 
         # Iterate until mean moves less than this threshold
-        self.epsilon = 1e-5
+        self.epsilon = 1e-4
 
         # This initialization value make it think we are moving forward in the 1st step
         self.old_next_checkpoint = float("-inf")
@@ -19,6 +31,8 @@ class Controller(controller_template.Controller):
         # Placeholder parameters for CMA-ES
         self.mean = None
         self.cov_matrix = None
+
+        self.data = []
 
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
@@ -38,10 +52,13 @@ class Controller(controller_template.Controller):
         features = self.compute_features(self.sensors)
         parameters = np.array(parameters).reshape(5, -1)
 
-        computed_values = features * parameters
-        summed_values = np.sum(computed_values, axis=1)
+        action_values = np.sum(features * parameters, axis=1)
 
-        return np.argmax(summed_values)
+        self.last_action = np.argmax(action_values) + 1
+        self.no_turn_times = self.no_turn_times + \
+            1 if self.last_action not in [1, 2] else 0
+
+        return self.last_action
 
     def compute_features(self, sensors):
         """
@@ -78,18 +95,20 @@ class Controller(controller_template.Controller):
         left_f = self.normalize(track_distance_left, 0, 100)
         center_f = self.normalize(track_distance_center, 0, 100)
         right_f = self.normalize(track_distance_right, 0, 100)
+        central_f = self.normalize(
+            abs(track_distance_left - track_distance_right), 0, 100)
         ontrack_f = self.normalize(on_track, 0, 1)
         velocity_f = self.normalize(car_velocity, 0, 200)
+        slow_f = self.normalize(int(car_velocity < self.vel_threshold), 0, 1)
+        turn_f = self.normalize(max(self.no_turn_times, 10), 0, 10)
+        last_action_f = -1 if self.last_action == 1 else 1 if self.last_action == 2 else 0
 
         # TODO FEATURES
-        # Know how to leave grass
-        # Remember last action (left, center, right)
-        # Time without choosing to turn
-        # Faster than threshold
-        # Try to centralize better (left - right)
+        # Know how to leave grass <- Too hard, how?
 
         features = np.array([constant_f, approx_f, left_f, center_f,
-                             right_f, ontrack_f, velocity_f])
+                             right_f, central_f, ontrack_f, velocity_f,
+                             slow_f, turn_f, last_action_f])
 
         # Update values
         self.old_next_checkpoint = checkpoint_distance
@@ -119,9 +138,14 @@ class Controller(controller_template.Controller):
         # Learning process
         try:
             loss = float("inf")
-            iter = 1
-            trials = 1  # Try to make backsearch
+            iteration = 1
+            backtracks = 1  # Try to make backsearch
             while loss > self.epsilon:
+
+                # Only try MAX_BACKTRACKS times
+                if backtracks >= MAX_BACKTRACKS:
+                    break
+
                 # Sample from a multivariate normal distribution
                 params = np.random.multivariate_normal(
                     self.mean, self.cov_matrix, self.neighbourhood_size)
@@ -148,7 +172,6 @@ class Controller(controller_template.Controller):
 
                 # Compute loss
                 loss = np.linalg.norm(self.mean - new_mean)
-                print('Iter', iter, 'Loss:', loss, 'Max:', max(fitness))
 
                 # Update mean and cov_matrix
                 self.mean = new_mean
@@ -159,21 +182,50 @@ class Controller(controller_template.Controller):
                 if max_fitness > best_fitness:
                     print('Updated best fitness to {}'.format(max_fitness))
                     best_fitness = max_fitness
-                    best_fitness_at_iter = iter
+                    best_fitness_at_iter = iteration
                     best_weights = best_params[0]
 
-                # Update iteration
-                iter += 1
+                    # Save
+                    if not os.path.exists("./params"):
+                        os.makedirs("./params")
+                    output = "./params/{}.{}.{}.txt".format(self.track_name.name, datetime.datetime.fromtimestamp(
+                        time.time()).strftime('%Y%m%d%H%M%S'), int(best_fitness))
+                    print("Saving it to {}".format(output))
+                    np.savetxt(output, best_weights)
 
-                # If can still backsearch, do it, to avoid local minimums
-                if (iter - 5 > best_fitness_at_iter or loss < self.epsilon) and trials < 3:
-                    trials += 1
+                    # Reset backtracks
+                    backtracks = 1
+
+                # Log info
+                print('Iter', iteration, '\tLoss:', loss, '\tMax:', max(
+                    fitness), 'Best at iter:', best_fitness_at_iter, 'with value', best_fitness, end='\n\n')
+
+                # Save info
+                self.data.append({
+                    'epoch': iteration,
+                    'fitness': max(fitness),
+                    'best_weight': list(best_params[0]),
+                    'time': datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S')
+                })
+
+                # Update iteration
+                iteration += 1
+
+                # Try to backtrack to avoid local minimums
+                if iteration - BACKTRACK_LIMIT > best_fitness_at_iter or loss < self.epsilon:
+                    print("Backtracking to {} iteration".format(
+                        best_fitness_at_iter))
+                    backtracks += 1
                     self.mean = best_weights
                     self.cov_matrix = np.identity(best_weights.shape[0])
-                    best_fitness_at_iter = iter - 1
+                    best_fitness_at_iter = iteration - 1
 
         except KeyboardInterrupt:  # To be able to use CTRL+C to stop learning
             pass
+
+        # Save data to file
+        with open('./data/common.json', 'w') as f:
+            json.dump(self.data, f)
 
         # Return the weights learned at this point
         return best_weights
