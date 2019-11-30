@@ -41,7 +41,7 @@ class Controller(controller_template.Controller):
         computed_values = features * parameters
         summed_values = np.sum(computed_values, axis=1)
 
-        return np.argmax(summed_values)
+        return np.argmax(summed_values) + 1
 
     def compute_features(self, sensors):
         """
