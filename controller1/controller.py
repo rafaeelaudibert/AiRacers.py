@@ -41,6 +41,7 @@ class Controller(controller_template.Controller):
         """
         raise NotImplementedError("This Method Must Be Implemented")
 
+
     def learn(self, weights) -> list:
         """
         IMPLEMENT YOUR LEARNING METHOD (i.e. YOUR LOCAL SEARCH ALGORITHM) HERE
