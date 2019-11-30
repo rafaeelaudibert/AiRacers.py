@@ -4,9 +4,7 @@ import controller_template as controller_template
 class Controller(controller_template.Controller):
     def __init__(self, track, evaluate=True, bot_type=None):
         super().__init__(track, evaluate=evaluate, bot_type=bot_type)
-
-
-
+        
     #######################################################################
     ##### METHODS YOU NEED TO IMPLEMENT ###################################
     #######################################################################
@@ -25,8 +23,6 @@ class Controller(controller_template.Controller):
         features = self.compute_features(self.sensors)
         raise NotImplementedError("This Method Must Be Implemented")
 
-
-
     def compute_features(self, sensors):
         """
         :param sensors: Car sensors at the current state s_t of the race/game
@@ -44,9 +40,6 @@ class Controller(controller_template.Controller):
         :return: A list containing the features you defined
         """
         raise NotImplementedError("This Method Must Be Implemented")
-
-
-
 
     def learn(self, weights) -> list:
         """
